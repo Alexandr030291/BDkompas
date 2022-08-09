@@ -2,11 +2,11 @@ import sqlite3
 
 
 class Database:
-    KEYS_DOC = ["обозначение", "наименование", "материал", "формаки"]
+    KEYS_DOC = ["обозначение", "наименование", "материал", "форматки"]
     MAX_ID = 1_000_000_000
 
-    def __init__(self, fname):
-        self.conn = sqlite3.connect(fname)
+    def __init__(self, name=':memory:'):
+        self.conn = sqlite3.connect(name)
         self.cur = self.conn.cursor()
         self.__create_table_database()
 
@@ -37,7 +37,20 @@ class Database:
          """, """
          CREATE TABLE IF NOT EXISTS 'billet_type'(           
                 'id' INT PRIMARY KEY,
-                'name' TEXT
+                'name' TEXT,
+                UNIQUE ('name')
+                );
+         """, """
+         CREATE TABLE IF NOT EXISTS 'products'(           
+                'id' INT PRIMARY KEY,
+                'name' TEXT,
+                UNIQUE ('name')
+                );
+         """, """
+         CREATE TABLE IF NOT EXISTS 'products'(           
+                'id' INT PRIMARY KEY,
+                'name' TEXT,
+                UNIQUE ('name')
                 );
          """]
         for command in commands:
@@ -46,4 +59,6 @@ class Database:
 
 
 if __name__ == '__main__':
-    db = Database('docs.db')
+    db = Database(
+        'docs.db'
+    )
