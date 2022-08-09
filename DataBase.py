@@ -1,15 +1,19 @@
 import sqlite3
 import hashlib
+import os
 
 
 class Database:
     KEYS_DOC = ["обозначение", "наименование", "материал", "форматки"]
     MAX_ID = 1_000_000_000
 
-    def __init__(self, name=':memory:'):
-        self.conn = sqlite3.connect(name)
+    def __init__(self, name_db=':memory:'):
+        self.conn = sqlite3.connect(name_db)
         self.cur = self.conn.cursor()
         self.__create_table_database()
+
+    def __del__(self):
+        self.cur.close()
 
     def __create_table_database(self):
         commands = ["""
@@ -71,13 +75,12 @@ class Database:
                 CONSTRAINT 'link' PRIMARY KEY ('main', 'dependent')
                 );
          """, """
-         CREATE TABLE IF NOT EXISTS 'link_item_to_materials'(           
+         CREATE TABLE IF NOT EXISTS 'link_item_to_products'(           
                 'main' INT,
                 'dependent' INT,
                 'count' FLOAT,
-                CONSTRAINT 'link' PRIMARY KEY ('main', 'products')
-                );
-         """
+                CONSTRAINT 'link' PRIMARY KEY ('main', 'dependent')
+                );"""
                     ]
         self.cur.execute("""SELECT name FROM sqlite_master WHERE type='table' AND name='billet_type'""")
         if len(self.cur.fetchall()) == 0:
@@ -101,8 +104,39 @@ class Database:
             self.cur.execute(command)
             self.conn.commit()
 
+    def __get_id_item(self, designation):
+        _answer = None
+        while _answer is None:
+            self.cur.execute("""SELECT 'id' FROM 'items' WHERE 'designation' = ? """, (designation,))
+            _answer = self.cur.fetchall()
+            if _answer is not None:
+                _answer = _answer[0]
+            else:
+                self.cur.execute("""INSERT INTO 'items' ('designation') VALUES(?) """, (designation,))
+                self.conn.commit()
+        return _answer
+
+    def add_link_item_to_item(self, main_designation, dependent_designation, count):
+        _ids_item = []
+        _designations = [main_designation, dependent_designation]
+        for _designation in _designations:
+            _ids_item.append(self.__get_id_item(_designation))
+        self.cur.execute("""SELECT * FROM 'link_item_to_item' WHERE 'main' = ? AND 'dependent' = ? """,
+                         (_ids_item[0], _ids_item[1],))
+        quest = """UPDATE 'link_item_to_item' SET 'count' = ? WHERE 'main' = ? AND 'dependent' = ? """
+        if len(self.cur.fetchall()) == 0:
+            quest = """INSERT INTO 'link_item_to_item' ('count', 'main', 'depended') VALUES(?, ?, ?) """
+        self.cur.execute(quest, (count, _ids_item[0], _ids_item[1], ))
+        self.conn.commit()
+
+    def add_file(self, designation, path):
+        self.cur.execute("""SELECT 'id' FROM 'docs' WHERE 'designation' = ? """, (designation,))
+        _id_doc = self.cur.fetchall()[0]
+        _hash = hashlib.md5(open(path, 'rb').read()).hexdigest()
+
 
 if __name__ == '__main__':
-    db = Database(
-        'docs.db'
-    )
+    name = 'docs_test.db'
+    db = Database(name)
+    del db
+    os.remove(name)
